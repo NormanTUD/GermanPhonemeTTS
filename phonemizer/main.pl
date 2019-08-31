@@ -25,23 +25,22 @@ mkdir $tmp unless -d $tmp;
 
 analyze_args(@ARGV);
 
-convert_text_to_ogg("Hallo, das hier ist eine Beispieldatei.");
+my $text = "Das hier ist ein Beispieltext";
+convert_text_to_wav($text, "example.wav");
 
-sub convert_text_to_ogg {
+sub convert_text_to_wav {
 	my $string = shift;
 	my $output = shift // "output.wav";
 
 	my $ipa = convert_string_to_ipa($string);
+	$ipa =~ s#[\(\)]# #g;
 	print "$ipa\n";
-
-	$ipa =~ s#(.)ː#lc($1)#ge;
 
 	my @splitted = split //, $ipa;
 
 	my @sounds = ();
 	my $i = 0;
-	#foreach my $ipa_laut (@splitted) {
-	
+
 	while ($i != $#splitted) {
 		my $ipa_laut = $splitted[$i];
 		my $found = 0;
@@ -88,12 +87,13 @@ sub convert_text_to_ogg {
 
 		if(!$found && $ipa_laut !~ /\s+/) {
 			my $laut_path = "$sounds/$ipa_laut.ogg";
+			warn "$ipa_laut\n";
 			if(-e $laut_path) {
 				push @sounds, $laut_path;	
 			} else {
 				warn color("red")."!!!!!!!!!!!!!!!! $ipa_laut not found!!!!!!".color("reset")."\n";
 			}
-		} else {
+		} elsif(!$found) {
 			my $laut_path = "$sounds/silence.ogg";
 			#push @sounds, $laut_path;	
 		}
@@ -135,6 +135,7 @@ sub convert_string_to_ipa {
 
 sub convert_word_to_ipa {
 	my $string = shift;
+	return '' if $string =~ m#^\s*$#;
 	debug "convert_word_to_ipa($string)";
 	$string = lc($string);
 	#$string =~ s#(?=![^\s])\W#XXX#g;
