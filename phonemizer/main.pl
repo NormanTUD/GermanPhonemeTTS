@@ -20,13 +20,13 @@ my %options = (
 );
 
 my $tmp = './tmp';
-my $sounds = './sounds/';
+my $sound_path = './sounds/';
 mkdir $tmp unless -d $tmp;
 
 analyze_args(@ARGV);
 
-my $text = "Das hier ist ein Beispieltext";
-convert_text_to_wav($text, "example.wav");
+my $text = 'Das hier ist ein Beispieltext';
+convert_text_to_wav($text);
 
 sub convert_text_to_wav {
 	my $string = shift;
@@ -41,62 +41,15 @@ sub convert_text_to_wav {
 	my @sounds = ();
 	my $i = 0;
 
-	while ($i != $#splitted) {
+	while ($i <= $#splitted) {
 		my $ipa_laut = $splitted[$i];
 		my $found = 0;
-
-		if(($i + 3) <= $#splitted && $splitted[$i] !~ /\s/ && $splitted[$i + 1] !~ /\s/ && $splitted[$i + 2] !~ /\s/ && $splitted[$i + 3] !~ /\s/) {
-			my $ipa_next = $splitted[$i].$splitted[$i + 1].$splitted[$i + 2].$splitted[$i + 3];
-			my $laut_path = "$sounds/$ipa_next.ogg";
-
-			warn "$ipa_next\n";
-			if(-e $laut_path) {
-				warn color("blue")."Found >>>$ipa_next<<<!".color("reset")."\n";
-				push @sounds, $laut_path;	
-				$found = 1;
-				$i += 3;
-			}
-		}
-
-		if(($i + 2) <= $#splitted && $splitted[$i] !~ /\s/ && $splitted[$i + 1] !~ /\s/ && $splitted[$i + 2] !~ /\s/) {
-			my $ipa_next = $splitted[$i].$splitted[$i + 1].$splitted[$i + 2];;
-			my $laut_path = "$sounds/$ipa_next.ogg";
-
-			warn "$ipa_next\n";
-			if(-e $laut_path) {
-				warn color("blue")."Found >>>$ipa_next<<<!".color("reset")."\n";
-				push @sounds, $laut_path;	
-				$found = 1;
-				$i += 2;
-			}
-		}
-
-
-		if(($i + 1) <= $#splitted && $splitted[$i] !~ /\s/ && $splitted[$i + 1] !~ /\s/) {
-			my $ipa_next = $splitted[$i].$splitted[$i + 1];
-			my $laut_path = "$sounds/$ipa_next.ogg";
-
-			warn "$ipa_next\n";
-			if(-e $laut_path) {
-				warn color("blue")."Found >>>$ipa_next<<<!".color("reset")."\n";
-				push @sounds, $laut_path;	
-				$found = 1;
-				$i++;
-			}
-		}
-
-		if(!$found && $ipa_laut !~ /\s+/) {
-			my $laut_path = "$sounds/$ipa_laut.ogg";
-			warn "$ipa_laut\n";
-			if(-e $laut_path) {
-				push @sounds, $laut_path;	
-			} else {
-				warn color("red")."!!!!!!!!!!!!!!!! $ipa_laut not found!!!!!!".color("reset")."\n";
-			}
-		} elsif(!$found) {
-			my $laut_path = "$sounds/silence.ogg";
-			#push @sounds, $laut_path;	
-		}
+		($found, $i) = check_next_n_tokens($i, $found, 5, \@sounds, \@splitted);
+		($found, $i) = check_next_n_tokens($i, $found, 4, \@sounds, \@splitted);
+		($found, $i) = check_next_n_tokens($i, $found, 3, \@sounds, \@splitted);
+		($found, $i) = check_next_n_tokens($i, $found, 2, \@sounds, \@splitted);
+		($found, $i) = check_next_n_tokens($i, $found, 1, \@sounds, \@splitted);
+		($found, $i) = check_next_n_tokens($i, $found, 0, \@sounds, \@splitted);
 		$i++;
 	}
 
@@ -107,6 +60,39 @@ sub convert_text_to_wav {
 	} else {
 		warn "\@sounds empty!!!";
 	}
+}
+
+sub check_next_n_tokens {
+	my $i = shift;
+	my $found = shift;
+	my $n = shift;
+	my $sounds = shift;
+	my $splitted = shift;
+
+	if(($i + $n) <= (scalar @{$splitted} - 1) && !$found) {
+		my $none_next_characters_empty = 1;
+		CHECK_EMPTY_CHARS: foreach my $m ($i .. ($i + $n)) {
+			if($splitted->[$m] =~ /\s/) {
+				$none_next_characters_empty = 0;
+				last CHECK_EMPTY_CHARS;
+			}
+		}
+
+		if($none_next_characters_empty) {
+			my $ipa_next = join('', map { $splitted->[$_] } ($i .. ($i + $n)));
+			my $laut_path = "$sound_path/$ipa_next.ogg";
+
+			warn "$ipa_next\n";
+			if(-e $laut_path) {
+				warn color("blue")."Found >>>$ipa_next<<<!".color("reset")."\n";
+				push @{$sounds}, $laut_path;	
+				$found = 1;
+				$i += $n;
+			}
+		}
+	}
+
+	return +($found, $i);
 }
 
 sub convert_string_to_ipa {
@@ -122,6 +108,7 @@ sub convert_string_to_ipa {
 				$ipa_string = ':::PAUSE:::';
 			}
 		} else {
+			$word =~ s#[^\w\d]##g;
 			$ipa_string = convert_word_to_ipa($word);
 		}
 		push @ipa, $ipa_string;
