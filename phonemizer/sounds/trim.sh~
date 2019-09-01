@@ -1,0 +1,9 @@
+#!/bin/bash
+
+mkdir backups
+for i in *.ogg; do
+	echo $i
+	cp $i backups/
+	#sox $i $i silence 1 0.1 1% reverse silence 1 0.1 1% reverse
+	sox $i $i silence 1 0.01 1%
+done
