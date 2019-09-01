@@ -25,7 +25,7 @@ mkdir $tmp unless -d $tmp;
 
 analyze_args(@ARGV);
 
-my $text = 'Das hier ist ein Beispieltext';
+my $text = 'lo-ol so-os me-em';
 convert_text_to_wav($text);
 
 sub convert_text_to_wav {
