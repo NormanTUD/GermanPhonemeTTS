@@ -12,6 +12,7 @@ use Digest::MD5 qw(md5_hex);
 use Data::Dumper;
 use Term::ANSIColor;
 use Memoize;
+use utf8::all;
 
 memoize 'speak_word';
 
@@ -24,11 +25,17 @@ my %options = (
 
 my $tmp = './tmp';
 my $sound_path = './sounds/';
+my $max_phoneme_length = length([
+		sort { length($b) <=> length($a) } 
+			map { s#^$sound_path/##g; s#\.ogg$##g; $_ } 
+				grep { not /^\.\.?$/ } grep { -f } 
+					glob("$sound_path/*.ogg")]->[0]
+	); # search for longest file without $sound_path and .ogg in $sound_path
 mkdir $tmp unless -d $tmp;
 
 analyze_args(@ARGV);
 
-my $text = "das hier ist nur ein beispieltext";
+my $text = "die gpl ist eine gute lizenz";
 convert_text_to_ogg($text);
 
 sub convert_text_to_ogg {
@@ -82,12 +89,11 @@ sub speak_word {
 	while ($i <= $#splitted) {
 		my $ipa_laut = $splitted[$i];
 		my $found = 0;
-		($found, $i) = check_next_n_tokens($i, $found, 5, \@sounds, \@splitted);
-		($found, $i) = check_next_n_tokens($i, $found, 4, \@sounds, \@splitted);
-		($found, $i) = check_next_n_tokens($i, $found, 3, \@sounds, \@splitted);
-		($found, $i) = check_next_n_tokens($i, $found, 2, \@sounds, \@splitted);
-		($found, $i) = check_next_n_tokens($i, $found, 1, \@sounds, \@splitted);
-		($found, $i) = check_next_n_tokens($i, $found, 0, \@sounds, \@splitted);
+		THISFOR: for my $around (reverse(0 .. $max_phoneme_length)) {
+			next if length($ipa) < $around;
+			($found, $i) = check_next_n_tokens($i, $found, $around, \@sounds, \@splitted) if length($ipa) >= $around;
+			last THISFOR if $found;
+		}
 		$i++;
 	}
 	merge_sounds($tmp_file, @sounds);
