@@ -31,6 +31,8 @@ Perl-Modules:
 
 # How to run it
 
+Edit the main.pl to change the text that should be said.
+
 > perl main.pl
 
 # Options
