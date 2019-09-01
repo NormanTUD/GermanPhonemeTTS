@@ -15,11 +15,28 @@ Sox:
 Phonemizer:
 
 > git clone --depth=1 https://github.com/bootphon/phonemizer /tmp/phonemizer/
+
 > cd /tmp/phonemizer
+
 > python setup.py build
+
 > sudo python setup.py install
 
 Perl-Modules:
 > sudo cpan -i Term::ANSIColor
+
 > sudo cpan -i Memoize
+
 > sudo cpan -i Digest::MD5
+
+# How to run it
+
+> perl main.pl
+
+# Options
+
+> --debug Enables debug mode
+
+> --nopause Disables pauses between words (doesn't do anything yet)
+
+> --language=de Sets the language (doesn't do anything really yet)
