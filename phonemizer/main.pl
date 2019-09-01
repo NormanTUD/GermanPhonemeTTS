@@ -11,6 +11,9 @@ use open qw/:std :utf8/;
 use Digest::MD5 qw(md5_hex);
 use Data::Dumper;
 use Term::ANSIColor;
+use Memoize;
+
+memoize 'speak_word';
 
 my %options = (
 	debug => 0,
@@ -25,21 +28,56 @@ mkdir $tmp unless -d $tmp;
 
 analyze_args(@ARGV);
 
-my $text = 'lo-ol so-os me-em';
-convert_text_to_wav($text);
+my $text = "das hier ist nur ein beispieltext";
+convert_text_to_ogg($text);
 
-sub convert_text_to_wav {
+sub convert_text_to_ogg {
 	my $string = shift;
 	my $output = shift // "output.wav";
 
 	my $ipa = convert_string_to_ipa($string);
+	$ipa =~ s#\(.*?\)# #g;
 	$ipa =~ s#[\(\)]# #g;
 	print "$ipa\n";
 
-	my @splitted = split //, $ipa;
 
 	my @sounds = ();
+
+	foreach my $word (split/\s/, $ipa) {
+		my $spoken = speak_word($word);
+		if($spoken) {
+			push @sounds, $spoken;
+		}
+	}
+
+	if(@sounds) {
+		merge_sounds($output, @sounds);
+		foreach (@sounds) {
+			unlink $_;
+		}
+	} else {
+		warn "\@sounds empty!!!";
+	}
+}
+
+sub merge_sounds {
+	my $name = shift;
+	return unless $name;
+	my @sounds = @_;
+	my $command = q#sox #.join(' ', @sounds).qq# $name#;
+	print "$command\n";
+	system($command);
+	return $name;
+}
+
+sub speak_word {
+	my $ipa = shift;
+	return undef if !$ipa;
+	my $tmp_file = "$tmp/$ipa.ogg";
+	return $tmp_file if -e $tmp_file;
+	my @splitted = split //, $ipa;
 	my $i = 0;
+	my @sounds = ();
 
 	while ($i <= $#splitted) {
 		my $ipa_laut = $splitted[$i];
@@ -52,14 +90,8 @@ sub convert_text_to_wav {
 		($found, $i) = check_next_n_tokens($i, $found, 0, \@sounds, \@splitted);
 		$i++;
 	}
-
-	if(@sounds) {
-		my $command = q#sox #.join(' ', @sounds).qq#  $output#;
-		print $command;
-		system($command);
-	} else {
-		warn "\@sounds empty!!!";
-	}
+	merge_sounds($tmp_file, @sounds);
+	return $tmp_file;
 }
 
 sub check_next_n_tokens {
