@@ -20,7 +20,8 @@ my %options = (
 	debug => 0,
 	nocache => 0,
 	language => 'de',
-	pause => 1
+	pause => 1,
+	text => ''
 );
 
 my $tmp = './tmp';
@@ -35,7 +36,7 @@ mkdir $tmp unless -d $tmp;
 
 analyze_args(@ARGV);
 
-my $text = "die gpl ist eine gute lizenz";
+my $text = $options{text};
 convert_text_to_ogg($text);
 
 sub convert_text_to_ogg {
@@ -45,6 +46,7 @@ sub convert_text_to_ogg {
 	my $ipa = convert_string_to_ipa($string);
 	$ipa =~ s#\(.*?\)# #g;
 	$ipa =~ s#[\(\)]# #g;
+	$ipa =~ s#:::PAUSE:::##g;
 	print "$ipa\n";
 
 
@@ -71,6 +73,10 @@ sub merge_sounds {
 	my $name = shift;
 	return unless $name;
 	my @sounds = @_;
+	@sounds = grep { $_ ne ':::PAUSE:::' } @sounds;
+	foreach (@sounds) {
+		die "ERROR! $_ not found" unless -e $_;
+	}
 	my $command = q#sox #.join(' ', @sounds).qq# $name#;
 	print "$command\n";
 	system($command);
@@ -168,7 +174,7 @@ sub convert_word_to_ipa {
 	if(!-e $cache_file || $options{nocache}) {
 		my $normal_file = $cache_file."_normal";
 		write_file($normal_file, $string);
-		my $command = "phonemize -l de -b espeak $normal_file -o $cache_file";
+		my $command = "phonemize -l $options{language} -b espeak $normal_file -o $cache_file";
 		print "$command\n";
 		system($command);
 	}
@@ -210,6 +216,8 @@ sub analyze_args {
 			$options{language} = $1;
 		} elsif (m#^--nopause$#) {
 			$options{pause} = 0;
+		} elsif (m#^--text=(.+)$#) {
+			$options{text} = $1;
 		} else {
 			die "Unknown parameter: $_";
 		}
